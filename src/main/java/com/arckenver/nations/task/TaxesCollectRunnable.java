@@ -73,15 +73,22 @@ public class TaxesCollectRunnable implements Runnable
 				}
 			}
 			// nation upkeep
-			BigDecimal upkeep = BigDecimal.valueOf(nation.getUpkeep());
-			TransactionResult result = optAccount.get().withdraw(NationsPlugin.getEcoService().getDefaultCurrency(), upkeep, NationsPlugin.getCause());
-			if (result.getResult() == ResultType.ACCOUNT_NO_FUNDS)
+			if (ConfigHandler.getNode("others", "enableItemUpkeep").getBoolean())
 			{
-				nationsToRemove.add(nation.getUUID());
+				// TODO
 			}
-			else if (result.getResult() != ResultType.SUCCESS)
+			else
 			{
-				NationsPlugin.getLogger().error("Error while taking upkeep from nation " + nation.getName());
+				BigDecimal upkeep = BigDecimal.valueOf(nation.getUpkeep());
+				TransactionResult result = optAccount.get().withdraw(NationsPlugin.getEcoService().getDefaultCurrency(), upkeep, NationsPlugin.getCause());
+				if (result.getResult() == ResultType.ACCOUNT_NO_FUNDS)
+				{
+					nationsToRemove.add(nation.getUUID());
+				}
+				else if (result.getResult() != ResultType.SUCCESS)
+				{
+					NationsPlugin.getLogger().error("Error while taking upkeep from nation " + nation.getName());
+				}
 			}
 		}
 		for (UUID uuid : nationsToRemove)
