@@ -26,14 +26,22 @@ import com.arckenver.nations.object.Zone;
 import com.arckenver.nations.serializer.NationDeserializer;
 import com.arckenver.nations.serializer.NationSerializer;
 import com.flowpowered.math.vector.Vector2i;
+import com.flowpowered.math.vector.Vector3i;
 import com.google.common.math.IntMath;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
+import ninja.leaping.configurate.commented.CommentedConfigurationNode;
+import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 
 public class DataHandler
 {
 	private static File nationsDir;
 	private static Gson gson;
+
+	private static File itemUpkeepChestsFile;
+	private static HoconConfigurationLoader itemUpkeepChestsLoader;
+	private static CommentedConfigurationNode itemUpkeepChestsData;
 	
 	private static Hashtable<UUID, Nation> nations;
 	private static Hashtable<UUID, Hashtable<Vector2i, ArrayList<Nation>>> worldChunks;
@@ -43,6 +51,7 @@ public class DataHandler
 	private static Hashtable<UUID, Point> secondPoints;
 	private static ArrayList<Request> inviteRequests;
 	private static ArrayList<Request> joinRequests;
+	private static Hashtable<UUID, ArrayList<Vector3i>> itemUpkeepChests;
 	
 	public static void init(File rootDir)
 	{
@@ -52,6 +61,9 @@ public class DataHandler
 				.registerTypeAdapter(Nation.class, new NationDeserializer())
 				.setPrettyPrinting()
 				.create();
+		
+		itemUpkeepChestsFile = new File(rootDir, "itemUpkeepChests.conf");
+		itemUpkeepChestsLoader = HoconConfigurationLoader.builder().setPath(itemUpkeepChestsFile.toPath()).build();
 	}
 	
 	public static void load()
@@ -82,6 +94,43 @@ public class DataHandler
 		secondPoints = new Hashtable<UUID, Point>();
 		inviteRequests = new ArrayList<Request>();
 		joinRequests = new ArrayList<Request>();
+		itemUpkeepChests = new Hashtable<UUID, ArrayList<Vector3i>>();
+		if (ConfigHandler.getNode("others", "enableItemUpkeep").getBoolean())
+		{
+			try
+			{
+				if (!itemUpkeepChestsFile.exists())
+				{
+					itemUpkeepChestsFile.createNewFile();
+					itemUpkeepChestsData = itemUpkeepChestsLoader.load();
+					itemUpkeepChestsLoader.save(itemUpkeepChestsData);
+				}
+				itemUpkeepChestsData = itemUpkeepChestsLoader.load();
+				
+				for (Entry<Object, ? extends CommentedConfigurationNode> e : itemUpkeepChestsData.getNode("chests").getChildrenMap().entrySet())
+				{
+					UUID uuid = UUID.fromString(e.getKey().toString());
+					Nation nation = getNation(uuid);
+					if (nation != null)
+					{
+						ArrayList<Vector3i> positions = new ArrayList<Vector3i>();
+						for (CommentedConfigurationNode node : e.getValue().getChildrenList())
+						{
+							if (node.getNode("x").getValue() instanceof Number && node.getNode("y").getValue() instanceof Number && node.getNode("z").getValue() instanceof Number)
+							{
+								positions.add(new Vector3i(node.getNode("x").getInt(), node.getNode("y").getInt(), node.getNode("z").getInt()));
+							}
+						}
+						itemUpkeepChests.put(uuid, positions);
+					}
+				}
+			}
+			catch (IOException e)
+			{
+				NationsPlugin.getLogger().error("Error while loading item upkeep chests data file");
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static void save()
@@ -90,7 +139,6 @@ public class DataHandler
 		{
 			saveNation(uuid);
 		}
-		
 	}
 	
 	// nations
