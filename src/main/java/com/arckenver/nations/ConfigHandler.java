@@ -10,10 +10,14 @@ import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.world.World;
 
 import com.arckenver.nations.object.Nation;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
+import org.spongepowered.api.item.ItemType;
 
 public class ConfigHandler
 {
@@ -73,7 +77,8 @@ public class ConfigHandler
 		Utils.ensurePositiveNumber(config.getNode("others", "minZoneNameLength"), 3);
 		Utils.ensurePositiveNumber(config.getNode("others", "maxZoneNameLength"), 13);
 		Utils.ensureBoolean(config.getNode("others", "enableNationRanks"), true);
-
+		Utils.ensureBoolean(config.getNode("others", "enableItemUpkeep"), false);
+		
 		Utils.ensureBoolean(config.getNode("nations", "canEditTaxes"), true);
 		Utils.ensurePositiveNumber(config.getNode("nations", "defaultTaxes"), 50);
 		Utils.ensurePositiveNumber(config.getNode("nations", "maxTaxes"), 100);
@@ -131,6 +136,36 @@ public class ConfigHandler
 				Utils.ensurePositiveNumber(rank.getNode("numCitizens"), 1000000);
 				Utils.ensureString(rank.getNode("nationTitle"), "NO_TITLE");
 				Utils.ensureString(rank.getNode("presidentTitle"), "NO_TITLE");
+			}
+		}
+		
+		if (config.getNode("others", "enableItemUpkeep").getBoolean())
+		{
+			if (!config.getNode("itemUpkeepPerCitizen").hasMapChildren() || config.getNode("itemUpkeepPerCitizen").getChildrenMap().isEmpty())
+			{
+				config.getNode("itemUpkeepPerCitizen", "minecraft:iron_ingot").setValue(2);
+				config.getNode("itemUpkeepPerCitizen", "minecraft:log").setValue(5);
+				config.getNode("itemUpkeepPerCitizen", "minecraft:bread").setValue(3);
+			}
+			else
+			{
+				ArrayList<String> toRemove = new ArrayList<String>();
+				for (Entry<Object, ? extends CommentedConfigurationNode> e : config.getNode("itemUpkeepPerCitizen").getChildrenMap().entrySet())
+				{
+					if (!Sponge.getRegistry().getType(ItemType.class, e.getKey().toString()).isPresent())
+					{
+						NationsPlugin.getLogger().error("Error while getting itemUpkeepPerCitizen in config: " + e.getKey().toString() + " is not an item type");
+						toRemove.add(e.getKey().toString());
+					}
+					else
+					{
+						Utils.ensurePositiveNumber(e.getValue(), 0);
+					}
+				}
+				for (String key : toRemove)
+				{
+					config.getNode("itemUpkeepPerCitizen").removeChild(key);
+				}
 			}
 		}
 		
