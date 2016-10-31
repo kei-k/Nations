@@ -51,7 +51,7 @@ public class DataHandler
 	private static Hashtable<UUID, Point> secondPoints;
 	private static ArrayList<Request> inviteRequests;
 	private static ArrayList<Request> joinRequests;
-	private static Hashtable<UUID, ArrayList<Vector3i>> itemUpkeepChests;
+	private static Hashtable<UUID, Hashtable<UUID, ArrayList<Vector3i>>> itemUpkeepChests;
 	
 	public static void init(File rootDir)
 	{
@@ -94,7 +94,8 @@ public class DataHandler
 		secondPoints = new Hashtable<UUID, Point>();
 		inviteRequests = new ArrayList<Request>();
 		joinRequests = new ArrayList<Request>();
-		itemUpkeepChests = new Hashtable<UUID, ArrayList<Vector3i>>();
+		
+		itemUpkeepChests = new Hashtable<UUID, Hashtable<UUID, ArrayList<Vector3i>>>();
 		if (ConfigHandler.getNode("others", "enableItemUpkeep").getBoolean())
 		{
 			try
@@ -107,21 +108,52 @@ public class DataHandler
 				}
 				itemUpkeepChestsData = itemUpkeepChestsLoader.load();
 				
+				ArrayList<String> nationsToRemove = new ArrayList<String>();
+				ArrayList<String> worldsToRemove = new ArrayList<String>();
 				for (Entry<Object, ? extends CommentedConfigurationNode> e : itemUpkeepChestsData.getNode("chests").getChildrenMap().entrySet())
 				{
 					UUID uuid = UUID.fromString(e.getKey().toString());
 					Nation nation = getNation(uuid);
 					if (nation != null)
 					{
-						ArrayList<Vector3i> positions = new ArrayList<Vector3i>();
-						for (CommentedConfigurationNode node : e.getValue().getChildrenList())
+						Hashtable<UUID, ArrayList<Vector3i>> perWorld = new Hashtable<UUID, ArrayList<Vector3i>>();
+						for (Entry<Object, ? extends CommentedConfigurationNode> en : e.getValue().getChildrenMap().entrySet())
 						{
-							if (node.getNode("x").getValue() instanceof Number && node.getNode("y").getValue() instanceof Number && node.getNode("z").getValue() instanceof Number)
+							UUID worldUUID = UUID.fromString(en.getKey().toString());
+							if (Sponge.getServer().getWorld(worldUUID).isPresent())
 							{
-								positions.add(new Vector3i(node.getNode("x").getInt(), node.getNode("y").getInt(), node.getNode("z").getInt()));
+								ArrayList<Vector3i> positions = new ArrayList<Vector3i>();
+								for (CommentedConfigurationNode node : en.getValue().getChildrenList())
+								{
+									if (node.getNode("x").getValue() instanceof Number && node.getNode("y").getValue() instanceof Number && node.getNode("z").getValue() instanceof Number)
+									{
+										positions.add(new Vector3i(node.getNode("x").getInt(), node.getNode("y").getInt(), node.getNode("z").getInt()));
+									}
+								}
+								perWorld.put(worldUUID, positions);
+							}
+							else
+							{
+								worldsToRemove.add(en.getKey().toString());
 							}
 						}
-						itemUpkeepChests.put(uuid, positions);
+						itemUpkeepChests.put(uuid, perWorld);
+						
+					}
+					else
+					{
+						nationsToRemove.add(e.getKey().toString());
+					}
+				}
+				for (String key : nationsToRemove)
+				{
+					itemUpkeepChestsData.getNode("chests").removeChild(key);
+				}
+				for (String key : worldsToRemove)
+				{
+					for (CommentedConfigurationNode node : itemUpkeepChestsData.getNode("chests").getChildrenMap().values())
+					{
+						node.removeChild(key);
 					}
 				}
 			}
