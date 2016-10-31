@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.block.BlockTypes;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.world.Location;
 import org.spongepowered.api.world.World;
@@ -120,15 +121,28 @@ public class DataHandler
 						for (Entry<Object, ? extends CommentedConfigurationNode> en : e.getValue().getChildrenMap().entrySet())
 						{
 							UUID worldUUID = UUID.fromString(en.getKey().toString());
-							if (Sponge.getServer().getWorld(worldUUID).isPresent())
+							Optional<World> optWorld = Sponge.getServer().getWorld(worldUUID);
+							if (optWorld.isPresent())
 							{
 								ArrayList<Vector3i> positions = new ArrayList<Vector3i>();
+								int i = 0;
 								for (CommentedConfigurationNode node : en.getValue().getChildrenList())
 								{
 									if (node.getNode("x").getValue() instanceof Number && node.getNode("y").getValue() instanceof Number && node.getNode("z").getValue() instanceof Number)
 									{
-										positions.add(new Vector3i(node.getNode("x").getInt(), node.getNode("y").getInt(), node.getNode("z").getInt()));
+										Vector3i vect = new Vector3i(node.getNode("x").getInt(), node.getNode("y").getInt(), node.getNode("z").getInt());
+										if (optWorld.get().getBlockType(vect).equals(BlockTypes.CHEST) ||
+												optWorld.get().getBlockType(vect).equals(BlockTypes.TRAPPED_CHEST))
+										{
+											positions.add(vect);
+										}
+										else
+										{
+											en.getValue().removeChild(i);
+											--i;
+										}
 									}
+									++i;
 								}
 								perWorld.put(worldUUID, positions);
 							}
@@ -550,6 +564,13 @@ public class DataHandler
 	public static void removeInviteRequest(Request req)
 	{
 		inviteRequests.remove(req);
+	}
+	
+	// item upkeep
+	
+	public static Hashtable<UUID, ArrayList<Vector3i>> getChestPositions(UUID uuid)
+	{
+		return itemUpkeepChests.get(uuid);
 	}
 	
 	// saves
