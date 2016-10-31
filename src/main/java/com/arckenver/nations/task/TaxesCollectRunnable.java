@@ -2,11 +2,17 @@ package com.arckenver.nations.task;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.block.BlockTypes;
+import org.spongepowered.api.block.tileentity.carrier.Chest;
+import org.spongepowered.api.item.ItemType;
+import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.service.economy.account.Account;
 import org.spongepowered.api.service.economy.account.UniqueAccount;
 import org.spongepowered.api.service.economy.transaction.ResultType;
@@ -14,12 +20,16 @@ import org.spongepowered.api.service.economy.transaction.TransactionResult;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.api.text.format.TextColors;
+import org.spongepowered.api.world.World;
 
 import com.arckenver.nations.ConfigHandler;
 import com.arckenver.nations.DataHandler;
 import com.arckenver.nations.LanguageHandler;
 import com.arckenver.nations.NationsPlugin;
 import com.arckenver.nations.object.Nation;
+import com.flowpowered.math.vector.Vector3i;
+
+import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 
 public class TaxesCollectRunnable implements Runnable
 {
@@ -75,7 +85,52 @@ public class TaxesCollectRunnable implements Runnable
 			// nation upkeep
 			if (ConfigHandler.getNode("others", "enableItemUpkeep").getBoolean())
 			{
-				// TODO
+				Hashtable<ItemType, Integer> upkeep = new Hashtable<ItemType, Integer>();
+				for (Entry<Object, ? extends CommentedConfigurationNode> e : ConfigHandler.getNode("itemUpkeepPerCitizen").getChildrenMap().entrySet())
+				{
+					Optional<ItemType> optType = Sponge.getRegistry().getType(ItemType.class, e.getKey().toString());
+					if (optType.isPresent())
+					{
+						upkeep.put(optType.get(), nation.getNumCitizens() * e.getValue().getInt());
+					}
+					else
+					{
+						NationsPlugin.getLogger().error("Error while collecting item upkeeps: \"" + e.getKey().toString() + "\" is not an item type");
+					}
+				}
+				Hashtable<UUID, ArrayList<Vector3i>> chestPositions = DataHandler.getChestPositions(nation.getUUID());
+				if (chestPositions != null)
+				{
+					for (Entry<UUID, ArrayList<Vector3i>> e : chestPositions.entrySet())
+					{
+						World world = Sponge.getServer().getWorld(e.getKey()).get();
+						for (Vector3i vect : e.getValue())
+						{
+							if (world.getBlockType(vect).equals(BlockTypes.CHEST) ||
+									world.getBlockType(vect).equals(BlockTypes.TRAPPED_CHEST))
+							{
+								Chest chest = (Chest) world.getLocation(vect).getTileEntity().get();
+								for (ItemType itemType : upkeep.keySet())
+								{
+									Optional<ItemStack> optItemStack = chest.getInventory().query(itemType).poll(upkeep.get(itemType));
+									if (optItemStack.isPresent())
+									{
+										upkeep.put(itemType, upkeep.get(itemType) - optItemStack.get().getQuantity());
+									}
+								}
+							}
+						}
+					}
+					if (!upkeep.values().stream().allMatch(i -> i <= 0))
+					{
+						nationsToRemove.add(nation.getUUID());
+					}
+					
+				}
+				else
+				{
+					NationsPlugin.getLogger().error("Error while collecting item upkeeps: could not find chest positions for nation " + nation.getName());
+				}
 			}
 			else
 			{
