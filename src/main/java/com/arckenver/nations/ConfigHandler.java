@@ -153,7 +153,7 @@ public class ConfigHandler
 				{
 					if (!Sponge.getRegistry().getType(ItemType.class, e.getKey().toString()).isPresent())
 					{
-						NationsPlugin.getLogger().error("Error while getting itemUpkeepPerCitizen in config: " + e.getKey().toString() + " is not an item type");
+						NationsPlugin.getLogger().error("Error while getting itemUpkeepPerCitizen in config: \"" + e.getKey().toString() + "\" is not an item type");
 						toRemove.add(e.getKey().toString());
 					}
 					else
