@@ -568,6 +568,68 @@ public class DataHandler
 	
 	// item upkeep
 	
+	@SuppressWarnings("serial")
+	public static void addChestPosition(UUID nationUUID, Location<World> loc)
+	{
+		if (itemUpkeepChests.containsKey(nationUUID))
+		{
+			if (itemUpkeepChests.get(nationUUID).containsKey(loc.getExtent().getUniqueId()))
+			{
+				if (itemUpkeepChests.get(nationUUID).get(loc.getExtent().getUniqueId()).contains(loc.getBlockPosition()))
+				{
+					itemUpkeepChests.get(nationUUID).get(loc.getExtent().getUniqueId()).add(loc.getBlockPosition());
+				}
+			}
+			else
+			{
+				itemUpkeepChests.get(nationUUID).put(loc.getExtent().getUniqueId(), new ArrayList<Vector3i>() {{
+					add(loc.getBlockPosition());
+				}});
+			}
+		}
+		else
+		{
+			Hashtable<UUID, ArrayList<Vector3i>> toAdd = new Hashtable<UUID, ArrayList<Vector3i>>();
+			toAdd.put(loc.getExtent().getUniqueId(), new ArrayList<Vector3i>() {{
+				add(loc.getBlockPosition());
+			}});
+			itemUpkeepChests.put(nationUUID, toAdd);
+		}
+	}
+	
+	public static void removeChestPosition(Location<World> loc)
+	{
+		ArrayList<UUID> toRemove = new ArrayList<UUID>();
+		for (Entry<UUID, Hashtable<UUID, ArrayList<Vector3i>>> e : itemUpkeepChests.entrySet())
+		{
+			ArrayList<UUID> worldsToRemove = new ArrayList<UUID>();
+			for (Entry<UUID, ArrayList<Vector3i>> en : e.getValue().entrySet())
+			{
+				if (en.getKey().equals(loc.getExtent()) &&
+						en.getValue().contains(loc.getBlockPosition()))
+				{
+					en.getValue().remove(loc.getBlockPosition());
+					if (en.getValue().isEmpty())
+					{
+						worldsToRemove.add(en.getKey());
+					}
+				}
+			}
+			for (UUID uuid : worldsToRemove)
+			{
+				e.getValue().remove(uuid);
+				if (e.getValue().isEmpty())
+				{
+					toRemove.add(e.getKey());
+				}
+			}
+		}
+		for (UUID uuid : toRemove)
+		{
+			itemUpkeepChests.remove(uuid);
+		}
+	}
+	
 	public static Hashtable<UUID, ArrayList<Vector3i>> getChestPositions(UUID uuid)
 	{
 		return itemUpkeepChests.get(uuid);
