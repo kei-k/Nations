@@ -28,6 +28,7 @@ import com.arckenver.nations.cmdelement.NationNameElement;
 import com.arckenver.nations.cmdelement.PlayerNameElement;
 import com.arckenver.nations.cmdelement.WorldNameElement;
 import com.arckenver.nations.cmdelement.ZoneNameElement;
+import com.arckenver.nations.cmdexecutor.nation.NationAddchestExecutor;
 import com.arckenver.nations.cmdexecutor.nation.NationBuyextraExecutor;
 import com.arckenver.nations.cmdexecutor.nation.NationCitizenExecutor;
 import com.arckenver.nations.cmdexecutor.nation.NationClaimExecutor;
@@ -259,6 +260,12 @@ public class NationsPlugin
 				.child(nationadminPermCmd, "perm")
 				.build();
 
+		CommandSpec nationAddchestCmd = CommandSpec.builder()
+				.description(Text.of(""))
+				.permission("nations.command.nation.addchest")
+				.executor(new NationAddchestExecutor())
+				.build();
+
 		CommandSpec nationInfoCmd = CommandSpec.builder()
 				.description(Text.of(""))
 				.permission("nations.command.nation.info")
@@ -449,6 +456,7 @@ public class NationsPlugin
 				.description(Text.of(""))
 				.permission("nations.command.nation")
 				.executor(new NationExecutor())
+				.child(nationAddchestCmd, "addchest")
 				.child(nationInfoCmd, "info")
 				.child(nationHereCmd, "here", "h")
 				.child(nationListCmd, "list", "l")
