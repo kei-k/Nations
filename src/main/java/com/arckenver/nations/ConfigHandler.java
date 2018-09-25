@@ -48,11 +48,11 @@ public class ConfigHandler
 		}
 		catch (IOException e)
 		{
-			NationsPlugin.getLogger().error(LanguageHandler.CY);
+			NationsPlugin.getLogger().error(LanguageHandler.ERROR_CONFIGFILE);
 			e.printStackTrace();
 			if (src != null)
 			{
-				src.sendMessage(Text.of(TextColors.RED, LanguageHandler.CY));
+				src.sendMessage(Text.of(TextColors.RED, LanguageHandler.ERROR_CONFIGFILE));
 			}
 		}
 		
@@ -70,9 +70,29 @@ public class ConfigHandler
 		Utils.ensurePositiveNumber(config.getNode("others", "maxExtra"), 5000);
 		Utils.ensurePositiveNumber(config.getNode("others", "minNationNameLength"), 3);
 		Utils.ensurePositiveNumber(config.getNode("others", "maxNationNameLength"), 13);
+		Utils.ensurePositiveNumber(config.getNode("others", "minNationTagLength"), 3);
+		Utils.ensurePositiveNumber(config.getNode("others", "maxNationTagLength"), 5);
 		Utils.ensurePositiveNumber(config.getNode("others", "minZoneNameLength"), 3);
 		Utils.ensurePositiveNumber(config.getNode("others", "maxZoneNameLength"), 13);
 		Utils.ensureBoolean(config.getNode("others", "enableNationRanks"), true);
+		Utils.ensureBoolean(config.getNode("others", "enableNationTag"), true);
+		Utils.ensureBoolean(config.getNode("others", "enableGoldenAxe"), true);
+		Utils.ensureString(config.getNode("others", "publicChatFormat"), " &r[&3{NATION}&r] &5{TITLE} &r");
+		Utils.ensureString(config.getNode("others", "nationChatFormat"), " &r{&eNC&r} ");
+		Utils.ensureString(config.getNode("others", "nationSpyChatTag"), " &r[&cSPY&r]");
+		
+		
+		Utils.ensureString(config.getNode("toast", "wild"), "&2{WILD} &7- {FORMATPVP}");
+		Utils.ensureString(config.getNode("toast", "nation"), "&3{NATION}{FORMATPRESIDENT} &7- {FORMATPVP}");
+		Utils.ensureString(config.getNode("toast", "zone"), "&3{NATION}{FORMATPRESIDENT} &7~ {FORMATZONENAME}{FORMATZONEOWNER}{FORMATZONEPRICE}{FORMATPVP}");
+		
+		Utils.ensureString(config.getNode("toast", "formatPresident"), "&7 - &e{TITLE} {NAME}");
+		Utils.ensureString(config.getNode("toast", "formatZoneName"), "&a{ARG} &7-");
+		Utils.ensureString(config.getNode("toast", "formatZoneOwner"), "&e{ARG} &7-");
+		Utils.ensureString(config.getNode("toast", "formatZonePrice"), "&e[{ARG}] &7-");
+		Utils.ensureString(config.getNode("toast", "formatPvp"), "&4({ARG})");
+		Utils.ensureString(config.getNode("toast", "formatNoPvp"), "&2({ARG})");
+		
 
 		Utils.ensureBoolean(config.getNode("nations", "canEditTaxes"), true);
 		Utils.ensurePositiveNumber(config.getNode("nations", "defaultTaxes"), 50);
@@ -82,6 +102,8 @@ public class ConfigHandler
 		Utils.ensureBoolean(config.getNode("nations", "flags", "mobs"), false);
 		Utils.ensureBoolean(config.getNode("nations", "flags", "fire"), false);
 		Utils.ensureBoolean(config.getNode("nations", "flags", "explosions"), false);
+		Utils.ensureBoolean(config.getNode("nations", "flags", "open"), false);
+		Utils.ensureBoolean(config.getNode("nations", "flags", "public"), false);
 		
 		Utils.ensureBoolean(config.getNode("nations", "perms").getNode(Nation.TYPE_OUTSIDER).getNode(Nation.PERM_BUILD), false);
 		Utils.ensureBoolean(config.getNode("nations", "perms").getNode(Nation.TYPE_OUTSIDER).getNode(Nation.PERM_INTERACT), false);
@@ -94,6 +116,27 @@ public class ConfigHandler
 		Utils.ensureBoolean(config.getNode("zones", "perms").getNode(Nation.TYPE_CITIZEN).getNode(Nation.PERM_INTERACT), true);
 		Utils.ensureBoolean(config.getNode("zones", "perms").getNode(Nation.TYPE_COOWNER).getNode(Nation.PERM_BUILD), true);
 		Utils.ensureBoolean(config.getNode("zones", "perms").getNode(Nation.TYPE_COOWNER).getNode(Nation.PERM_INTERACT), true);
+		
+		if (!config.getNode("whitelist", "build").hasListChildren() || config.getNode("whitelist", "build").getChildrenList().isEmpty())
+		{
+			Utils.ensureString(config.getNode("whitelist", "build").getAppendedNode(), "gravestone:gravestone");
+			Utils.ensureString(config.getNode("whitelist", "build").getAppendedNode(), "modname:blockname");
+		}
+		
+		if (!config.getNode("whitelist", "break").hasListChildren() || config.getNode("whitelist", "break").getChildrenList().isEmpty())
+		{
+			Utils.ensureString(config.getNode("whitelist", "break").getAppendedNode(), "modname:blockname");
+		}
+		
+		if (!config.getNode("whitelist", "use").hasListChildren() || config.getNode("whitelist", "use").getChildrenList().isEmpty())
+		{
+			Utils.ensureString(config.getNode("whitelist", "use").getAppendedNode(), "modname:blockname");
+		}
+
+		if (!config.getNode("whitelist", "spawn").hasListChildren() || config.getNode("whitelist", "spawn").getChildrenList().isEmpty())
+		{
+			Utils.ensureString(config.getNode("whitelist", "spawn").getAppendedNode(), "modname:entity");
+		}
 		
 		if (config.getNode("others", "enableNationRanks").getBoolean())
 		{
@@ -167,7 +210,7 @@ public class ConfigHandler
 		save();
 		if (src != null)
 		{
-			src.sendMessage(Text.of(TextColors.GREEN, LanguageHandler.CZ));
+			src.sendMessage(Text.of(TextColors.GREEN, LanguageHandler.INFO_CONFIGRELOADED));
 		}
 	}
 
@@ -198,6 +241,19 @@ public class ConfigHandler
 						Integer.compare(a.getNode("numCitizens").getInt(), b.getNode("numCitizens").getInt()))
 				.get();
 		return rank;
+	}
+	
+	public static boolean isWhitelisted(String type, String id) {
+		if (id.equals("minecraft:air"))
+			return true;
+		if (!config.getNode("whitelist", type).hasListChildren())
+			return false;
+		for (CommentedConfigurationNode item : config.getNode("whitelist", type).getChildrenList()) {
+			if (id.startsWith(item.getString())) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	public static class Utils

@@ -4,7 +4,9 @@ import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.command.args.CommandContext;
+import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandExecutor;
+import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
@@ -17,15 +19,24 @@ import com.arckenver.nations.object.Zone;
 
 public class ZoneInfoExecutor implements CommandExecutor
 {
+	public static void create(CommandSpec.Builder cmd) {
+		cmd.child(CommandSpec.builder()
+				.description(Text.of(""))
+				.permission("nations.command.zone.info")
+				.arguments(GenericArguments.optional(GenericArguments.string(Text.of("zone"))))
+				.executor(new ZoneInfoExecutor())
+				.build(), "info");
+	}
+
 	public CommandResult execute(CommandSource src, CommandContext ctx) throws CommandException
 	{
 		if (src instanceof Player)
 		{
 			Player player = (Player) src;
-			Nation nation = DataHandler.getNationOfPlayer(player.getUniqueId());
+			Nation nation = DataHandler.getNation(player.getLocation());
 			if (nation == null)
 			{
-				src.sendMessage(Text.of(TextColors.RED, LanguageHandler.CI));
+				src.sendMessage(Text.of(TextColors.RED, LanguageHandler.ERROR_NEEDSTANDNATION));
 				return CommandResult.success();
 			}
 			Zone zone = null;
@@ -34,7 +45,7 @@ public class ZoneInfoExecutor implements CommandExecutor
 				zone = nation.getZone(player.getLocation());
 				if (zone == null)
 				{
-					src.sendMessage(Text.of(TextColors.RED, LanguageHandler.GZ));
+					src.sendMessage(Text.of(TextColors.RED, LanguageHandler.ERROR_NEEDZONE));
 					return CommandResult.success();
 				}
 			}
@@ -43,14 +54,14 @@ public class ZoneInfoExecutor implements CommandExecutor
 				String zoneName = ctx.<String>getOne("zone").get();
 				for (Zone z : nation.getZones().values())
 				{
-					if (z.getName().equalsIgnoreCase(zoneName))
+					if (z.isNamed() && z.getRealName().equalsIgnoreCase(zoneName))
 					{
 						zone = z;
 					}
 				}
 				if (zone == null)
 				{
-					src.sendMessage(Text.of(TextColors.RED, LanguageHandler.CF));
+					src.sendMessage(Text.of(TextColors.RED, LanguageHandler.ERROR_BADZONENAME));
 					return CommandResult.success();
 				}
 			}
@@ -63,7 +74,7 @@ public class ZoneInfoExecutor implements CommandExecutor
 		}
 		else
 		{
-			src.sendMessage(Text.of(TextColors.RED, LanguageHandler.CA));
+			src.sendMessage(Text.of(TextColors.RED, LanguageHandler.ERROR_NOPLAYER));
 		}
 		return CommandResult.success();
 	}

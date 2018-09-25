@@ -3,12 +3,17 @@ package com.arckenver.nations.object;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.api.world.Location;
 import org.spongepowered.api.world.World;
 
 import com.arckenver.nations.ConfigHandler;
+import com.arckenver.nations.channel.NationMessageChannel;
 import com.flowpowered.math.vector.Vector2i;
 
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
@@ -24,6 +29,7 @@ public class Nation
 	
 	private UUID uuid;
 	private String name;
+	private String tag;
 	private boolean isAdmin;
 	private Hashtable<String, Location<World>> spawns;
 	private Region region;
@@ -34,7 +40,10 @@ public class Nation
 	private Hashtable<String, Boolean> flags;
 	private Hashtable<UUID, Zone> zones;
 	private int extras;
+	private int extraspawns;
 	private double taxes;
+	
+	private NationMessageChannel channel = new NationMessageChannel();
 
 	public Nation(UUID uuid, String name)
 	{
@@ -46,6 +55,7 @@ public class Nation
 	{
 		this.uuid = uuid;
 		this.name = name;
+		this.tag = null;
 		this.isAdmin = isAdmin;
 		this.spawns = new Hashtable<String, Location<World>>();
 		this.region = new Region();
@@ -72,6 +82,7 @@ public class Nation
 		}};
 		this.zones = new Hashtable<UUID, Zone>();
 		this.extras = 0;
+		this.extraspawns = 0;
 		this.taxes = ConfigHandler.getNode("nations", "defaultTaxes").getDouble();
 	}
 
@@ -87,12 +98,34 @@ public class Nation
 
 	public String getName()
 	{
+		return name.replace("_", " ");
+	}
+
+	public String getRealName()
+	{
 		return name;
 	}
 	
 	public void setName(String name)
 	{
 		this.name = name;
+	}
+	
+	public boolean hasTag()
+	{
+		return tag != null;
+	}
+
+	public String getTag()
+	{
+		if (tag == null)
+			return getName();
+		return tag;
+	}
+	
+	public void setTag(String tag)
+	{
+		this.tag = tag;
 	}
 
 	public boolean isAdmin()
@@ -139,7 +172,35 @@ public class Nation
 	{
 		return spawns.size();
 	}
+	
+	public int getMaxSpawns()
+	{
+		return ConfigHandler.getNode("others", "maxNationSpawns").getInt() + extraspawns;
+	}
 
+	public int getExtraSpawns() {
+		return extraspawns;
+	}
+	
+	public void setExtraSpawns(int extraspawns)
+	{
+		this.extraspawns = extraspawns;
+		if (this.extraspawns < 0)
+			this.extraspawns = 0;
+	}
+
+	public void addExtraSpawns(int extraspawns)
+	{
+		this.extraspawns += extraspawns;
+	}
+
+	public void removeExtraSpawns(int extraspawns)
+	{
+		this.extraspawns -= extraspawns;
+		if (this.extraspawns < 0)
+			this.extraspawns = 0;
+	}
+	
 	public Region getRegion()
 	{
 		return region;
@@ -195,7 +256,14 @@ public class Nation
 	
 	public boolean isStaff(UUID uuid)
 	{
-		return isPresident(uuid) || isMinister(uuid);
+		if (isPresident(uuid) || isMinister(uuid))
+			return true;
+		if (!isAdmin())
+			return false;
+		Optional<Player> player = Sponge.getServer().getPlayer(uuid);
+		if (player.isPresent() && player.get().hasPermission("nations.admin.zone.staff"))
+			return true;
+		return false;
 	}
 	
 	public ArrayList<UUID> getCitizens()
@@ -206,6 +274,9 @@ public class Nation
 	public void addCitizen(UUID uuid)
 	{
 		citizens.add(uuid);
+		Optional<Player> player = Sponge.getServer().getPlayer(uuid);
+		if (player.isPresent())
+			channel.addMember(player.get());
 	}
 
 	public boolean isCitizen(UUID uuid)
@@ -225,6 +296,12 @@ public class Nation
 				.forEach(zone -> zone.setOwner(null));
 		ministers.remove(uuid);
 		citizens.remove(uuid);
+		Optional<Player> player = Sponge.getServer().getPlayer(uuid);
+		if (player.isPresent())
+		{
+			channel.removeMember(player.get());
+			player.get().setMessageChannel(MessageChannel.TO_ALL);
+		}
 	}
 	
 	public Hashtable<String, Boolean> getFlags()
@@ -272,18 +349,6 @@ public class Nation
 		return zones;
 	}
 	
-	public Zone getZone(String name)
-	{
-		for (Zone zone : zones.values())
-		{
-			if (zone.getName().equalsIgnoreCase(name))
-			{
-				return zone;
-			}
-		}
-		return null;
-	}
-	
 	public Zone getZone(Location<World> loc)
 	{
 		Vector2i p = new Vector2i(loc.getBlockX(), loc.getBlockZ());
@@ -315,6 +380,8 @@ public class Nation
 	public void setExtras(int extras)
 	{
 		this.extras = extras;
+		if (this.extras < 0)
+			this.extras = 0;
 	}
 
 	public void addExtras(int extras)
@@ -322,8 +389,21 @@ public class Nation
 		this.extras += extras;
 	}
 
+	public void removeExtras(int extras)
+	{
+		this.extras -= extras;
+		if (this.extras < 0)
+			this.extras = 0;
+	}
+
 	public int maxBlockSize()
 	{
 		return extras + citizens.size() * ConfigHandler.getNode("others", "blocksPerCitizen").getInt();
 	}
+	
+	public NationMessageChannel getMessageChannel()
+	{
+		return channel;
+	}
+
 }
